@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+export PATH=/Users/pcwalton/Source/php/arcanist/bin:"$PATH"
+
 # "script-and-regex.regex": "/^(?P<severity>.*?)\n(?P<message>.*?)\n(?P<line>\\d),(?P<char>\\d)(\n(?P<original>.*?)>>>>\n(?P<replacement>.*?)<<<<?)$/s",
 
 # Arcanist linter that invokes clang-format via clang/tools/clang-format/clang-format-diff.py
