@@ -53,7 +53,7 @@ public:
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
                     AAQueryInfo &AAQI);
   bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal);
+                              bool OrLocal, bool OrInvariant);
 
   using AAResultBase::getModRefBehavior;
   FunctionModRefBehavior getModRefBehavior(const Function *F);

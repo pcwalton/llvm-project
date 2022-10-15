@@ -380,7 +380,7 @@ static bool isUseTriviallyOptimizableToLiveOnEntry(AliasAnalysisType &AA,
   // clobbered.
   if (auto *LI = dyn_cast<LoadInst>(I))
     return I->hasMetadata(LLVMContext::MD_invariant_load) ||
-           AA.pointsToConstantMemory(MemoryLocation::get(LI));
+           AA.pointsToConstantMemory(MemoryLocation::get(LI), /*OrLocal=*/ false, /*OrInvariant=*/ true);
   return false;
 }
 

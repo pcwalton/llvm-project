@@ -148,15 +148,16 @@ AliasResult AAResults::alias(const MemoryLocation &LocA,
 }
 
 bool AAResults::pointsToConstantMemory(const MemoryLocation &Loc,
-                                       bool OrLocal) {
+                                       bool OrLocal, bool OrInvariant) {
   SimpleAAQueryInfo AAQIP(*this);
-  return pointsToConstantMemory(Loc, AAQIP, OrLocal);
+  return pointsToConstantMemory(Loc, AAQIP, OrLocal, OrInvariant);
 }
 
 bool AAResults::pointsToConstantMemory(const MemoryLocation &Loc,
-                                       AAQueryInfo &AAQI, bool OrLocal) {
+                                       AAQueryInfo &AAQI, bool OrLocal,
+                                       bool OrInvariant) {
   for (const auto &AA : AAs)
-    if (AA->pointsToConstantMemory(Loc, AAQI, OrLocal))
+    if (AA->pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant))
       return true;
 
   return false;
@@ -256,7 +257,7 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
 
   // If Loc is a constant memory location, the call definitely could not
   // modify the memory location.
-  if (isModSet(Result) && pointsToConstantMemory(Loc, AAQI, /*OrLocal*/ false))
+  if (isModSet(Result) && pointsToConstantMemory(Loc, AAQI, /*OrLocal*/ false, /*OrInvariant*/ true))
     Result &= ModRefInfo::Ref;
 
   return Result;
@@ -514,7 +515,7 @@ ModRefInfo AAResults::getModRefInfo(const StoreInst *S,
 
     // If the pointer is a pointer to constant memory, then it could not have
     // been modified by this store.
-    if (pointsToConstantMemory(Loc, AAQI))
+    if (pointsToConstantMemory(Loc, AAQI, /*OrLocal=*/ false, /*OrInvariant=*/ true))
       return ModRefInfo::NoModRef;
   }
 
@@ -533,7 +534,7 @@ ModRefInfo AAResults::getModRefInfo(const FenceInst *S,
                                     AAQueryInfo &AAQI) {
   // If we know that the location is a constant memory location, the fence
   // cannot modify this location.
-  if (Loc.Ptr && pointsToConstantMemory(Loc, AAQI))
+  if (Loc.Ptr && pointsToConstantMemory(Loc, AAQI, /*OrLocal=*/ false, /*OrInvariant=*/ true))
     return ModRefInfo::Ref;
   return ModRefInfo::ModRef;
 }

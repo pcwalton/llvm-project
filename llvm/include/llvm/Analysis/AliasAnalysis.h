@@ -579,14 +579,17 @@ public:
            AliasResult::MustAlias;
   }
 
-  /// Checks whether the given location points to constant memory, or if
-  /// \p OrLocal is true whether it points to a local alloca.
-  bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal = false);
+  /// Checks whether the given location points to constant memory.
+  /// If \p OrLocal is true, returns true if the memory points to a local alloca.
+  bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal = false,
+                              bool OrInvariant = false);
 
   /// A convenience wrapper around the primary \c pointsToConstantMemory
   /// interface.
-  bool pointsToConstantMemory(const Value *P, bool OrLocal = false) {
-    return pointsToConstantMemory(MemoryLocation::getBeforeOrAfter(P), OrLocal);
+  bool pointsToConstantMemory(const Value *P, bool OrLocal = false,
+                              bool OrInvariant = false) {
+    return pointsToConstantMemory(MemoryLocation::getBeforeOrAfter(P), OrLocal,
+                                  OrInvariant);
   }
 
   /// @}
@@ -835,7 +838,7 @@ public:
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
                     AAQueryInfo &AAQI);
   bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal = false);
+                              bool OrLocal = false, bool OrInvariant = false);
   ModRefInfo getModRefInfo(Instruction *I, const CallBase *Call2,
                            AAQueryInfo &AAQIP);
   ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
@@ -901,8 +904,9 @@ public:
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB) {
     return AA.alias(LocA, LocB, AAQI);
   }
-  bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal = false) {
-    return AA.pointsToConstantMemory(Loc, AAQI, OrLocal);
+  bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal = false,
+                              bool OrInvariant = false) {
+    return AA.pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
   }
   ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc) {
     return AA.getModRefInfo(Call, Loc, AAQI);
@@ -969,7 +973,8 @@ public:
   /// Checks whether the given location points to constant memory, or if
   /// \p OrLocal is true whether it points to a local alloca.
   virtual bool pointsToConstantMemory(const MemoryLocation &Loc,
-                                      AAQueryInfo &AAQI, bool OrLocal) = 0;
+                                      AAQueryInfo &AAQI, bool OrLocal,
+                                      bool OrInvariant) = 0;
 
   /// @}
   //===--------------------------------------------------------------------===//
@@ -1025,8 +1030,8 @@ public:
   }
 
   bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal) override {
-    return Result.pointsToConstantMemory(Loc, AAQI, OrLocal);
+                              bool OrLocal, bool OrInvariant) override {
+    return Result.pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
   }
 
   ModRefInfo getArgModRefInfo(const CallBase *Call, unsigned ArgIdx) override {
@@ -1080,7 +1085,7 @@ public:
   }
 
   bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal) {
+                              bool OrLocal, bool OrInvariant) {
     return false;
   }
 

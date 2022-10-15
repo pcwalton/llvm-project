@@ -69,15 +69,16 @@ AliasResult ObjCARCAAResult::alias(const MemoryLocation &LocA,
 }
 
 bool ObjCARCAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
-                                             AAQueryInfo &AAQI, bool OrLocal) {
+                                             AAQueryInfo &AAQI, bool OrLocal,
+                                             bool OrInvariant) {
   if (!EnableARCOpts)
-    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
 
   // First, strip off no-ops, including ObjC-specific no-ops, and try making
   // a precise alias query.
   const Value *S = GetRCIdentityRoot(Loc.Ptr);
   if (AAResultBase::pointsToConstantMemory(
-          MemoryLocation(S, Loc.Size, Loc.AATags), AAQI, OrLocal))
+          MemoryLocation(S, Loc.Size, Loc.AATags), AAQI, OrLocal, OrInvariant))
     return true;
 
   // If that failed, climb to the underlying object, including climbing through
@@ -85,7 +86,7 @@ bool ObjCARCAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
   const Value *U = GetUnderlyingObjCPtr(S);
   if (U != S)
     return AAResultBase::pointsToConstantMemory(
-        MemoryLocation::getBeforeOrAfter(U), AAQI, OrLocal);
+        MemoryLocation::getBeforeOrAfter(U), AAQI, OrLocal, OrInvariant);
 
   // If that failed, fail. We don't need to chain here, since that's covered
   // by the earlier precise query.

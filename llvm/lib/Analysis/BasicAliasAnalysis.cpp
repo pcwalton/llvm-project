@@ -685,7 +685,9 @@ BasicAAResult::DecomposeGEPExpression(const Value *V, const DataLayout &DL,
 /// the function, with global constants being considered local to all
 /// functions.
 bool BasicAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
-                                           AAQueryInfo &AAQI, bool OrLocal) {
+                                           AAQueryInfo &AAQI,
+                                           bool OrLocal,
+                                           bool OrInvariant) {
   assert(Visited.empty() && "Visited must be cleared after use!");
   auto _ = make_scope_exit([&]{ Visited.clear(); });
 
@@ -695,7 +697,16 @@ bool BasicAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
   do {
     const Value *V = getUnderlyingObject(Worklist.pop_back_val());
     if (!Visited.insert(V).second)
-      return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+      return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
+
+    // A readonly, noalias argument is invariant for the entire lifetime of the
+    // SSA value.
+    if (OrInvariant) {
+      if (const Argument *Arg = dyn_cast<Argument>(V)) {
+        if (Arg->hasNoAliasAttr() && Arg->hasAttribute(Attribute::ReadOnly))
+          continue;
+      }
+    }
 
     // An alloca instruction defines local memory.
     if (OrLocal && isa<AllocaInst>(V))
@@ -707,7 +718,7 @@ bool BasicAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
       // global to be marked constant in some modules and non-constant in
       // others.  GV may even be a declaration, not a definition.
       if (!GV->isConstant())
-        return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+        return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
       continue;
     }
 
@@ -723,13 +734,13 @@ bool BasicAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
     if (const PHINode *PN = dyn_cast<PHINode>(V)) {
       // Don't bother inspecting phi nodes with many operands.
       if (PN->getNumIncomingValues() > MaxLookup)
-        return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+        return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
       append_range(Worklist, PN->incoming_values());
       continue;
     }
 
     // Otherwise be conservative.
-    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
   } while (!Worklist.empty() && --MaxLookup);
 
   return Worklist.empty();
@@ -866,20 +877,10 @@ AliasResult BasicAAResult::alias(const MemoryLocation &LocA,
   return aliasCheck(LocA.Ptr, LocA.Size, LocB.Ptr, LocB.Size, AAQI);
 }
 
-/// Checks to see if the specified callsite can clobber the specified memory
-/// object.
-///
-/// Since we only look at local properties of this function, we really can't
-/// say much about this query.  We do, however, use simple "address taken"
-/// analysis on local objects.
-ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call,
-                                        const MemoryLocation &Loc,
-                                        AAQueryInfo &AAQI) {
-  assert(notDifferentParent(Call, Loc.Ptr) &&
-         "AliasAnalysis query involving multiple functions!");
-
-  const Value *Object = getUnderlyingObject(Loc.Ptr);
-
+ModRefInfo BasicAAResult::getModRefInfoForObject(const CallBase *Call,
+                                                 const Value *Object,
+                                                 const MemoryLocation &Loc,
+                                                 AAQueryInfo &AAQI) {
   // Calls marked 'tail' cannot read or write allocas from the current frame
   // because the current frame might be destroyed by the time they run. However,
   // a tail call may use an alloca with byval. Calling with byval copies the
@@ -996,6 +997,32 @@ ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call,
 
   // The AAResultBase base class has some smarts, lets use them.
   return AAResultBase::getModRefInfo(Call, Loc, AAQI);
+}
+
+/// Checks to see if the specified callsite can clobber the specified memory
+/// object.
+///
+/// Since we only look at local properties of this function, we really can't
+/// say much about this query.  We do, however, use simple "address taken"
+/// analysis on local objects.
+ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call,
+                                        const MemoryLocation &Loc,
+                                        AAQueryInfo &AAQI) {
+  assert(notDifferentParent(Call, Loc.Ptr) &&
+         "AliasAnalysis query involving multiple functions!");
+
+  const Value *Object = getUnderlyingObject(Loc.Ptr);
+
+  ModRefInfo MRI = getModRefInfoForObject(Call, Object, Loc, AAQI);
+
+/*
+  if (const Argument *Arg = dyn_cast<Argument>(Object)) {
+    if (Arg->hasNoAliasAttr() && Arg->hasAttribute(Attribute::ReadOnly) && isModSet(MRI))
+      MRI = isRefSet(MRI) ? ModRefInfo::Ref : ModRefInfo::NoModRef;
+  }
+  */
+
+  return MRI;
 }
 
 ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call1,

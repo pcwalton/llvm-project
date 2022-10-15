@@ -179,7 +179,7 @@ checkFunctionMemoryAccess(Function &F, bool ThisBody, AAResults &AAR,
               MemoryLocation::getBeforeOrAfter(Arg, I.getAAMetadata());
           // Skip accesses to local or constant memory as they don't impact the
           // externally visible mod/ref behavior.
-          if (AAR.pointsToConstantMemory(Loc, /*OrLocal=*/true))
+          if (AAR.pointsToConstantMemory(Loc, /*OrLocal=*/true, /*OrInvariant=*/true))
             continue;
 
           MRB |= FunctionModRefBehavior::argMemOnly(ArgMR);
@@ -207,7 +207,7 @@ checkFunctionMemoryAccess(Function &F, bool ThisBody, AAResults &AAR,
     }
 
     // Ignore non-volatile accesses from local memory. (Atomic is okay here.)
-    if (!I.isVolatile() && AAR.pointsToConstantMemory(*Loc, /*OrLocal=*/true))
+    if (!I.isVolatile() && AAR.pointsToConstantMemory(*Loc, /*OrLocal=*/true, /*OrInvariant=*/true))
       continue;
 
     // The accessed location can be either only argument memory, or

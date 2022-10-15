@@ -77,7 +77,7 @@ public:
 
   /// Chases pointers until we find a (constant global) or not.
   bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal);
+                              bool OrLocal, bool OrInvariant);
 
   /// Get the location associated with a pointer argument of a callsite.
   ModRefInfo getArgModRefInfo(const CallBase *Call, unsigned ArgIdx);
@@ -154,6 +154,11 @@ private:
                                   const Value *V2, LocationSize V2Size,
                                   AAQueryInfo &AAQI, const Value *O1,
                                   const Value *O2);
+
+  ModRefInfo getModRefInfoForObject(const CallBase *Call,
+                                    const Value *Object,
+                                    const MemoryLocation &Loc,
+                                    AAQueryInfo &AAQI);
 };
 
 /// Analysis pass providing a never-invalidated alias analysis result.

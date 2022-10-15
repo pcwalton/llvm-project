@@ -387,13 +387,14 @@ AliasResult TypeBasedAAResult::alias(const MemoryLocation &LocA,
 
 bool TypeBasedAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
                                                AAQueryInfo &AAQI,
-                                               bool OrLocal) {
+                                               bool OrLocal,
+                                               bool OrInvariant) {
   if (!EnableTBAA)
-    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
 
   const MDNode *M = Loc.AATags.TBAA;
   if (!M)
-    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+    return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
 
   // If this is an "immutable" type, we can assume the pointer is pointing
   // to constant memory.
@@ -401,7 +402,7 @@ bool TypeBasedAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
       (isStructPathTBAA(M) && TBAAStructTagNode(M).isTypeImmutable()))
     return true;
 
-  return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal);
+  return AAResultBase::pointsToConstantMemory(Loc, AAQI, OrLocal, OrInvariant);
 }
 
 FunctionModRefBehavior
