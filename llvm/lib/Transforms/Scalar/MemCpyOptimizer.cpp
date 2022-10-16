@@ -1525,11 +1525,21 @@ bool MemCpyOptPass::processMemMove(MemMoveInst *M) {
 /// This is called on every byval argument in call sites.
 bool MemCpyOptPass::processByValArgument(CallBase &CB, unsigned ArgNo) {
   const DataLayout &DL = CB.getCaller()->getParent()->getDataLayout();
-  // Find out what feeds this byval argument.
+
   Value *ByValArg = CB.getArgOperand(ArgNo);
-  Type *ByValTy = CB.getParamByValType(ArgNo);
+  Type *ByValTy;
+  if (CB.isByValArgument(ArgNo)) {
+    ByValTy = CB.getParamByValType(ArgNo);
+  } else {
+    if (AllocaInst *Alloca = dyn_cast<AllocaInst>(ByValArg->stripPointerCasts()))
+      ByValTy = Alloca->getAllocatedType();
+    else
+      return false;
+  }
   TypeSize ByValSize = DL.getTypeAllocSize(ByValTy);
-  MemoryLocation Loc(ByValArg, LocationSize::precise(ByValSize));
+  MemoryLocation Loc = MemoryLocation(ByValArg, LocationSize::precise(ByValSize));
+
+  // Find out what feeds this byval argument.
   MemoryUseOrDef *CallAccess = MSSA->getMemoryAccess(&CB);
   if (!CallAccess)
     return false;
@@ -1627,9 +1637,14 @@ bool MemCpyOptPass::iterateOnFunction(Function &F) {
       else if (auto *M = dyn_cast<MemMoveInst>(I))
         RepeatInstruction = processMemMove(M);
       else if (auto *CB = dyn_cast<CallBase>(I)) {
-        for (unsigned i = 0, e = CB->arg_size(); i != e; ++i)
-          if (CB->isByValArgument(i))
+        for (unsigned i = 0, e = CB->arg_size(); i != e; ++i) {
+          if (CB->isByValArgument(i) ||
+              (CB->paramHasAttr(i, Attribute::ReadOnly) &&
+               CB->paramHasAttr(i, Attribute::NoCapture) &&
+               CB->paramHasAttr(i, Attribute::NoAlias))) {
             MadeChange |= processByValArgument(*CB, i);
+          }
+        }
       }
 
       // Reprocess the instruction if desired.
