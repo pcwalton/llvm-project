@@ -465,6 +465,20 @@ bool X86InstrInfo::isFrameOperand(const MachineInstr &MI, unsigned int Op,
   return false;
 }
 
+bool X86InstrInfo::isFrameOperandPostExpansion(const MachineInstr &MI, unsigned int Op,
+                                  int &FrameIndex) const {
+  if (MI.getOperand(Op + X86::AddrBaseReg).getReg() == X86::RBP &&
+      MI.getOperand(Op + X86::AddrScaleAmt).isImm() &&
+      MI.getOperand(Op + X86::AddrIndexReg).isReg() &&
+      MI.getOperand(Op + X86::AddrDisp).isImm() &&
+      MI.getOperand(Op + X86::AddrScaleAmt).getImm() == 1 &&
+      MI.getOperand(Op + X86::AddrIndexReg).getReg() == 0) {
+    FrameIndex = MI.getOperand(Op + X86::AddrDisp).getImm();
+    return true;
+  }
+  return false;
+}
+
 static bool isFrameLoadOpcode(int Opcode, unsigned &MemBytes) {
   switch (Opcode) {
   default:
@@ -690,6 +704,15 @@ unsigned X86InstrInfo::isLoadFromStackSlotPostFE(const MachineInstr &MI,
   return 0;
 }
 
+unsigned X86InstrInfo::isLoadFromStackSlotPostExpansion(const MachineInstr &MI, int &FrameIndex) const {
+  unsigned MemBytes;
+  if (isFrameLoadOpcode(MI.getOpcode(), MemBytes)) {
+    if (MI.getOperand(0).getSubReg() == 0 && isFrameOperandPostExpansion(MI, 1, FrameIndex))
+      return MI.getOperand(0).getReg();
+  }
+  return 0;
+}
+
 unsigned X86InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
                                           int &FrameIndex) const {
   unsigned Dummy;
@@ -724,6 +747,17 @@ unsigned X86InstrInfo::isStoreToStackSlotPostFE(const MachineInstr &MI,
   }
   return 0;
 }
+
+unsigned X86InstrInfo::isStoreToStackSlotPostExpansion(const MachineInstr &MI,
+                                          int &FrameIndex) const {
+  unsigned MemBytes;
+  if (isFrameStoreOpcode(MI.getOpcode(), MemBytes))
+    if (MI.getOperand(X86::AddrNumOperands).getSubReg() == 0 &&
+        isFrameOperandPostExpansion(MI, 0, FrameIndex))
+      return MI.getOperand(X86::AddrNumOperands).getReg();
+  return 0;
+}
+
 
 /// Return true if register is PIC base; i.e.g defined by X86::MOVPC32r.
 static bool regIsPICBase(Register BaseReg, const MachineRegisterInfo &MRI) {

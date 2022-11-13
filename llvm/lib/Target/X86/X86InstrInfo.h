@@ -228,6 +228,7 @@ public:
   /// reliable for correctness.
   unsigned isLoadFromStackSlotPostFE(const MachineInstr &MI,
                                      int &FrameIndex) const override;
+  unsigned isLoadFromStackSlotPostExpansion(const MachineInstr &MI, int &FrameIndex) const override;
 
   unsigned isStoreToStackSlot(const MachineInstr &MI,
                               int &FrameIndex) const override;
@@ -239,6 +240,9 @@ public:
   /// reliable for correctness.
   unsigned isStoreToStackSlotPostFE(const MachineInstr &MI,
                                     int &FrameIndex) const override;
+
+  unsigned isStoreToStackSlotPostExpansion(const MachineInstr &MI,
+                                            int &FrameIndex) const override;
 
   bool isReallyTriviallyReMaterializable(const MachineInstr &MI) const override;
   void reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
@@ -619,6 +623,9 @@ private:
   /// isFrameOperand - Return true and the FrameIndex if the specified
   /// operand and follow operands form a reference to the stack frame.
   bool isFrameOperand(const MachineInstr &MI, unsigned int Op,
+                      int &FrameIndex) const;
+
+  bool isFrameOperandPostExpansion(const MachineInstr &MI, unsigned int Op,
                       int &FrameIndex) const;
 
   /// Returns true iff the routine could find two commutable operands in the

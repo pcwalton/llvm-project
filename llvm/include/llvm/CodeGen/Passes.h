@@ -67,6 +67,8 @@ namespace llvm {
   /// using the MIR serialization format.
   MachineFunctionPass *createPrintMIRPass(raw_ostream &OS);
 
+  MachineFunctionPass *createStackCopyStatsPass(raw_ostream &OS);
+
   /// This pass resets a MachineFunction when it has the FailedISel property
   /// as if it was just created.
   /// If EmitFallbackDiag is true, the pass will emit a

@@ -49,6 +49,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
 #include <cassert>
+#include <cstdlib>
 #include <string>
 
 using namespace llvm;
@@ -1296,6 +1297,9 @@ void TargetPassConfig::addMachinePasses() {
 
   if (!DisableCFIFixup && TM->Options.EnableCFIFixup)
     addPass(createCFIFixup());
+
+  if (getenv("LLVM_STACK_COPY_STATS"))
+    addPass(createStackCopyStatsPass(errs()));
 
   // Add passes that directly emit MI after all other MI passes.
   addPreEmitPass2();

@@ -285,6 +285,11 @@ public:
     return 0;
   }
 
+  virtual unsigned isLoadFromStackSlotPostExpansion(const MachineInstr &MI,
+                                                    int &FrameIndex) const {
+    return 0;
+  }
+
   /// If the specified machine instruction has a load from a stack slot,
   /// return true along with the FrameIndices of the loaded stack slot and the
   /// machine mem operands containing the reference.
@@ -320,6 +325,11 @@ public:
   /// This uses a heuristic, so it isn't reliable for correctness.
   virtual unsigned isStoreToStackSlotPostFE(const MachineInstr &MI,
                                             int &FrameIndex) const {
+    return 0;
+  }
+
+  virtual unsigned isStoreToStackSlotPostExpansion(const MachineInstr &MI,
+                                                   int &FrameIndex) const {
     return 0;
   }
 
